@@ -1,0 +1,9 @@
+.env
+.env.*
+!.env.example
+node_modules/
+cache/
+out/
+broadcast/
+.DS_Store
+contracts/.git-backup/
