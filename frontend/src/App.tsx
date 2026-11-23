@@ -1,122 +1,42 @@
-import { useState } from 'react'
-import heroImg from './assets/hero.png'
-import reactLogo from './assets/react.svg'
-import viteLogo from './assets/vite.svg'
-import './App.css'
+import { useState } from 'react';
+import { Activity, ArrowDownLeft, ArrowUpRight, LayoutDashboard, Wallet, ShieldAlert, Menu, X, Sun, Moon, Landmark, ChevronRight } from 'lucide-react';
+import './App.css';
 
-function App() {
-  const [count, setCount] = useState(0)
+type View = 'Overview' | 'Markets' | 'Supply' | 'Borrow' | 'Portfolio' | 'Liquidations';
+type Action = 'Supply' | 'Borrow' | 'Withdraw' | 'Repay';
+type Asset = { symbol: string; name: string; price: number; supplied: number; borrowed: number; available: number; supplyRate: string; borrowRate: string; icon: string };
+const assets: Asset[] = [
+  { symbol: 'USDC', name: 'USD Coin', price: 1, supplied: 1246800, borrowed: 782400, available: 462800, supplyRate: '3.42%', borrowRate: '5.81%', icon: 'U' },
+  { symbol: 'WETH', name: 'Wrapped Ether', price: 3248.65, supplied: 86.4, borrowed: 31.8, available: 54.6, supplyRate: '2.18%', borrowRate: '4.96%', icon: 'Ξ' }
+];
+const money = (n: number) => n.toLocaleString('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 2 });
+const compact = (n: number) => n >= 1e6 ? `$${(n / 1e6).toFixed(2)}M` : n >= 1e3 ? `$${(n / 1e3).toFixed(1)}K` : money(n);
+const navItems = [{ name: 'Overview' as View, icon: LayoutDashboard }, { name: 'Markets' as View, icon: Activity }, { name: 'Supply' as View, icon: ArrowUpRight }, { name: 'Borrow' as View, icon: ArrowDownLeft }, { name: 'Portfolio' as View, icon: Wallet }, { name: 'Liquidations' as View, icon: ShieldAlert }];
 
-  return (
-    <>
-      <section id="center">
-        <div className="hero">
-          <img src={heroImg} className="base" width="170" height="179" alt="" />
-          <img src={reactLogo} className="framework" alt="React logo" />
-          <img src={viteLogo} className="vite" alt="Vite logo" />
-        </div>
-        <div>
-          <h1>Get started</h1>
-          <p>
-            Edit <code>src/App.tsx</code> and save to test <code>HMR</code>
-          </p>
-        </div>
-        <button
-          type="button"
-          className="counter"
-          onClick={() => setCount((count) => count + 1)}
-        >
-          Count is {count}
-        </button>
-      </section>
-
-      <div className="ticks"></div>
-
-      <section id="next-steps">
-        <div id="docs">
-          <svg className="icon" role="presentation" aria-hidden="true">
-            <use href="/icons.svg#documentation-icon"></use>
-          </svg>
-          <h2>Documentation</h2>
-          <p>Your questions, answered</p>
-          <ul>
-            <li>
-              <a href="https://vite.dev/" target="_blank">
-                <img className="logo" src={viteLogo} alt="" />
-                Explore Vite
-              </a>
-            </li>
-            <li>
-              <a href="https://react.dev/" target="_blank">
-                <img className="button-icon" src={reactLogo} alt="" />
-                Learn more
-              </a>
-            </li>
-          </ul>
-        </div>
-        <div id="social">
-          <svg className="icon" role="presentation" aria-hidden="true">
-            <use href="/icons.svg#social-icon"></use>
-          </svg>
-          <h2>Connect with us</h2>
-          <p>Join the Vite community</p>
-          <ul>
-            <li>
-              <a href="https://github.com/vitejs/vite" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#github-icon"></use>
-                </svg>
-                GitHub
-              </a>
-            </li>
-            <li>
-              <a href="https://chat.vite.dev/" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#discord-icon"></use>
-                </svg>
-                Discord
-              </a>
-            </li>
-            <li>
-              <a href="https://x.com/vite_js" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#x-icon"></use>
-                </svg>
-                X.com
-              </a>
-            </li>
-            <li>
-              <a href="https://bsky.app/profile/vite.dev" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#bluesky-icon"></use>
-                </svg>
-                Bluesky
-              </a>
-            </li>
-          </ul>
-        </div>
-      </section>
-
-      <div className="ticks"></div>
-      <section id="spacer"></section>
-    </>
-  )
+export default function App() {
+  const [view, setView] = useState<View>('Overview'); const [theme, setTheme] = useState<'light' | 'dark'>('light'); const [mobileNav, setMobileNav] = useState(false); const [wallet, setWallet] = useState(false); const [modal, setModal] = useState<{ action: Action; asset: Asset } | null>(null); const [amount, setAmount] = useState(''); const [toast, setToast] = useState(''); const [activity, setActivity] = useState<string[]>([]);
+  const totalSupplied = assets.reduce((s, a) => s + (a.symbol === 'USDC' ? a.supplied : a.supplied * a.price), 0); const totalBorrowed = assets.reduce((s, a) => s + (a.symbol === 'USDC' ? a.borrowed : a.borrowed * a.price), 0);
+  const setPage = (v: View) => { setView(v); setMobileNav(false); }; const closeModal = () => { setModal(null); setAmount(''); };
+  const submit = () => { if (!amount || !Number.isFinite(Number(amount)) || Number(amount) <= 0) { setToast('Enter a valid amount greater than zero.'); return; } const line = `${modal?.action} ${amount} ${modal?.asset.symbol}`; setActivity(a => [line, ...a].slice(0, 5)); setToast('Request recorded. This interface is not connected to a blockchain yet.'); closeModal(); window.setTimeout(() => setToast(''), 3600); };
+  return <div className={`app-shell ${theme}`}>
+    <header className="masthead"><div className="masthead-top"><span className="masthead-kicker">DECENTRALIZED FINANCE · LENDING</span><div className="masthead-controls"><button className="mobile-menu-trigger" onClick={() => setMobileNav(true)} aria-label="Open navigation"><Menu size={17} /></button><button className="theme-toggle" onClick={() => setTheme(theme === 'light' ? 'dark' : 'light')} aria-label={`Switch to ${theme === 'light' ? 'dark' : 'light'} theme`}>{theme === 'light' ? <Moon size={17} /> : <Sun size={17} />}<span>{theme === 'light' ? 'Dark' : 'Light'}</span></button><button className="wallet-button" onClick={() => setWallet(!wallet)}><Wallet size={16} />{wallet ? '0x71...8F2a' : 'Connect wallet'}</button></div></div><h1>MINI AAVE</h1><p className="intro-copy">A decentralized lending protocol. Supply digital assets, borrow against collateral, and manage your position.</p><nav className="main-nav" aria-label="Protocol navigation">{navItems.map(({ name, icon: Icon }) => <button key={name} className={`nav-item ${view === name ? 'active' : ''}`} onClick={() => setPage(name)}><Icon size={16} /><span>{name}</span></button>)}</nav></header>
+    <main className="page-content"><div className="page-heading"><div><p className="eyebrow">{view === 'Overview' ? 'PROTOCOL OVERVIEW' : 'LENDING MARKETS'}</p><h2>{view}</h2><p className="heading-desc">{view === 'Overview' ? 'Protocol activity and your position at a glance.' : view === 'Markets' ? 'Explore assets available to supply or borrow.' : view === 'Supply' ? 'Supply assets to the protocol and earn interest.' : view === 'Borrow' ? 'Borrow supported assets against your collateral.' : view === 'Portfolio' ? 'Review your supplied assets, collateral and debt.' : 'Monitor risk parameters and liquidation conditions.'}</p></div><div className="status-label"><span className="status-dot" />Sample market data</div></div>
+      {view === 'Overview' && <><section className="metrics-grid"><Metric label="Total supplied" value={compact(totalSupplied)} note="Across 2 markets" /><Metric label="Total borrowed" value={compact(totalBorrowed)} note="Market utilization · 62.8%" /><Metric label="Your supplied" value="$8,450.00" note="Net position · $6,950" /><Metric label="Your debt" value="$1,500.00" note="Health factor · 1.42" /></section><section className="overview-grid"><Position /><ActivityPanel activity={activity} /></section><MarketPanel onAction={setModal} onView={() => setPage('Markets')} /></>}
+      {view === 'Markets' && <MarketPanel onAction={setModal} />}
+      {view === 'Supply' && <MarketPanel onAction={setModal} filter="Supply" />}
+      {view === 'Borrow' && <MarketPanel onAction={setModal} filter="Borrow" />}
+      {view === 'Portfolio' && <Portfolio onAction={setModal} />}
+      {view === 'Liquidations' && <LiquidationPanel />}
+      <footer className="footer"><span>MINI AAVE</span><span>Educational protocol · Sample data, not live balances</span></footer></main>
+    {mobileNav && <div className="mobile-nav-sheet"><button className="close-sheet" onClick={() => setMobileNav(false)}><X size={20} /></button>{navItems.map(({ name, icon: Icon }) => <button key={name} onClick={() => setPage(name)}><Icon size={18} />{name}</button>)}</div>}
+    {modal && <div className="modal-backdrop" onClick={closeModal}><section className="transaction-modal" onClick={e => e.stopPropagation()} role="dialog" aria-modal="true" aria-labelledby="modal-title"><div className="modal-heading"><div><p className="eyebrow">TRANSACTION PREVIEW</p><h2 id="modal-title">{modal.action} {modal.asset.symbol}</h2></div><button className="icon-button" onClick={closeModal} aria-label="Close"><X size={18} /></button></div><div className="token-choice"><Token asset={modal.asset} /><span className="token-price">{money(modal.asset.price)}</span></div><label htmlFor="amount">Amount</label><div className="amount-field"><input id="amount" inputMode="decimal" value={amount} onChange={e => setAmount(e.target.value)} placeholder="0.00" /><button onClick={() => setAmount('100')}>MAX</button></div><div className="amount-hint">Wallet balance: 100.00 {modal.asset.symbol}</div><div className="modal-detail"><span>Estimated value</span><strong>{money(Number(amount || 0) * modal.asset.price)}</strong></div><p className="modal-warning">Preview only. No wallet or blockchain transaction is performed.</p><button className="primary-button" onClick={submit}>{modal.action} {modal.asset.symbol}</button></section></div>}
+    {toast && <div className="toast" role="status">{toast}</div>}
+  </div>;
 }
-
-export default App
+function Metric({ label, value, note }: { label: string; value: string; note: string }) { return <article className="metric-card"><span className="metric-label">{label}</span><strong>{value}</strong><span className="metric-note">{note}</span></article> }
+function Token({ asset }: { asset: Asset }) { return <div className="asset-cell"><span className={`token-icon ${asset.symbol === 'WETH' ? 'eth' : ''}`}>{asset.icon}</span><div><strong>{asset.symbol}</strong><small>{asset.name}</small></div></div> }
+function Position() { return <section className="panel position-panel"><div className="panel-heading"><div><h3>Your position</h3><p>Collateral and borrowing risk</p></div><span className="small-link">Portfolio <ChevronRight size={15} /></span></div><div className="health-row"><div><span className="health-label">Health factor</span><div className="health-value">1.42 <span className="health-state">Moderate</span></div></div><div className="health-ring"><strong>1.42</strong><small>HEALTH</small></div></div><div className="health-bar"><span /></div><div className="bar-legend"><span>Liquidation threshold</span><strong>1.00</strong></div><div className="position-stats"><div><span>Collateral value</span><strong>$3,450.00</strong></div><div><span>Borrowed value</span><strong>$1,500.00</strong></div><div><span>Available to borrow</span><strong>$1,087.50</strong></div></div><p className="risk-note"><ShieldAlert size={16} /> Health factor decreases as collateral prices fall or debt increases. Below 1.00, liquidation may occur.</p></section> }
+function ActivityPanel({ activity }: { activity: string[] }) { return <section className="panel activity-panel"><div className="panel-heading"><div><h3>Recent activity</h3><p>Session activity</p></div></div>{activity.length ? activity.map((t, i) => <div className="activity-item" key={`${t}${i}`}><Activity size={16} /><strong>{t}</strong><span>Recorded</span></div>) : <div className="empty-state"><Activity size={20} /><strong>No recent activity</strong><span>Transaction previews will appear here.</span></div>}</section> }
+function MarketPanel({ onAction, onView, filter }: { onAction: (m: { action: Action; asset: Asset } | null) => void; onView?: () => void; filter?: 'Supply' | 'Borrow' }) { return <section className="panel markets-panel"><div className="panel-heading"><div><h3>{filter ? `${filter} assets` : 'Markets'}</h3><p>Supported assets, rates and liquidity</p></div>{onView && <button className="text-button" onClick={onView}>All markets <ArrowUpRight size={15} /></button>}</div><div className="table-wrap"><table className="market-table"><thead><tr><th>Asset</th><th>Price</th><th>Supply APY</th><th>Borrow APY</th><th>Liquidity</th><th>Actions</th></tr></thead><tbody>{assets.map(a => <tr key={a.symbol}><td><Token asset={a} /></td><td>{money(a.price)}</td><td className="rate">{a.supplyRate}</td><td>{a.borrowRate}</td><td>{a.symbol === 'USDC' ? compact(a.available) : `${a.available} WETH`}</td><td className="action-cell">{(!filter || filter === 'Supply') && <button className="small-button" onClick={() => onAction({ action: 'Supply', asset: a })}>Supply</button>}{(!filter || filter === 'Borrow') && <button className="small-button secondary" onClick={() => onAction({ action: 'Borrow', asset: a })}>Borrow</button>}</td></tr>)}</tbody></table></div></section> }
+function Portfolio({ onAction }: { onAction: (m: { action: Action; asset: Asset } | null) => void }) { return <section className="panel portfolio-panel"><div className="portfolio-columns"><div><h3>Supplied assets</h3><div className="portfolio-row"><Token asset={assets[0]} /><strong>$8,450.00</strong><button className="small-button secondary" onClick={() => onAction({ action: 'Withdraw', asset: assets[0] })}>Withdraw</button></div><div className="portfolio-row"><Token asset={assets[1]} /><strong>0.00 WETH</strong><span className="muted">No balance</span></div></div><div><h3>Borrowed assets</h3><div className="portfolio-row"><Token asset={assets[0]} /><strong>$1,500.00</strong><button className="small-button" onClick={() => onAction({ action: 'Repay', asset: assets[0] })}>Repay</button></div><div className="portfolio-row"><Token asset={assets[1]} /><strong>0.00 WETH</strong><span className="muted">No debt</span></div></div></div></section> }
+function LiquidationPanel() { return <section className="panel liquidation-panel"><div className="panel-heading"><div><h3>Liquidation monitor</h3><p>Risk parameters</p></div></div><div className="empty-state"><ShieldAlert size={24} /><strong>No live positions available</strong><span>Liquidation monitoring will use borrower data once the contracts are connected.</span></div><div className="liq-info"><div><span>Liquidation threshold</span><strong>80%</strong></div><div><span>Liquidation bonus</span><strong>10%</strong></div><div><span>Close factor</span><strong>50%</strong></div></div></section> }
